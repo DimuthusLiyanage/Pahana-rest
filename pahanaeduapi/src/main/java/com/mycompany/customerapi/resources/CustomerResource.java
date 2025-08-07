@@ -9,68 +9,102 @@ import jakarta.ws.rs.core.Response;
 
 @Path("/customers")
 public class CustomerResource {
-    private final CustomerOPR cus = new CustomerOPR();
+    private final CustomerOPR customerOpr = new CustomerOPR();
     private final Gson gson = new Gson();
 
     // Get all customers
     @GET
     @Produces(MediaType.APPLICATION_JSON)
-    public Response getCustomers() {
-        return Response
-                .ok(gson.toJson(cus.getCustomers()))
-                .build();
-    }
-
-    // Get customer by ID
-    @GET
-    @Path("{id}")
-    @Produces(MediaType.APPLICATION_JSON)
-    public Response getCustomerById(@PathParam("id") int id) {
-        Customer customer = cus.getCustomerById(id);
-        if (customer != null) {
-            return Response.ok(gson.toJson(customer)).build();
-        } else {
-            return Response.status(Response.Status.NOT_FOUND).build();
+    public Response getAllCustomers() {
+        try {
+            return Response
+                    .ok(gson.toJson(customerOpr.getCustomers()))
+                    .build();
+        } catch (Exception e) {
+            return Response.serverError().entity(e.getMessage()).build();
         }
     }
 
-    // Add new customer
+    // Get customer by account number
+    @GET
+    @Path("{accountNumber}")
+    @Produces(MediaType.APPLICATION_JSON)
+    public Response getCustomerByAccountNumber(@PathParam("accountNumber") String accountNumber) {
+        try {
+            Customer customer = customerOpr.getCustomerByAccountNumber(accountNumber);
+            if (customer != null) {
+                return Response.ok(gson.toJson(customer)).build();
+            } else {
+                return Response.status(Response.Status.NOT_FOUND)
+                        .entity("Customer not found with account: " + accountNumber)
+                        .build();
+            }
+        } catch (Exception e) {
+            return Response.serverError().entity(e.getMessage()).build();
+        }
+    }
+
+    // Create new customer
     @POST
     @Consumes(MediaType.APPLICATION_JSON)
-    public Response addCustomer(String json) {
-        Customer customer = gson.fromJson(json, Customer.class);
-        boolean isAdded = cus.addCustomer(customer);
-        if (isAdded) {
-            return Response.status(Response.Status.CREATED).build();
-        } else {
-            return Response.status(Response.Status.INTERNAL_SERVER_ERROR).build();
+    public Response createCustomer(String json) {
+        try {
+            Customer customer = gson.fromJson(json, Customer.class);
+            boolean isCreated = customerOpr.addCustomer(customer);
+            if (isCreated) {
+                return Response.status(Response.Status.CREATED)
+                        .entity("Customer created successfully")
+                        .build();
+            } else {
+                return Response.status(Response.Status.INTERNAL_SERVER_ERROR)
+                        .entity("Failed to create customer")
+                        .build();
+            }
+        } catch (Exception e) {
+            return Response.serverError().entity(e.getMessage()).build();
         }
     }
 
     // Update existing customer
     @PUT
-    @Path("{id}")
+    @Path("{accountNumber}")
     @Consumes(MediaType.APPLICATION_JSON)
-    public Response updateCustomer(String json, @PathParam("id") int id) {
-        Customer customer = gson.fromJson(json, Customer.class);
-        customer.setId(id); // Ensure path ID matches the customer ID
-        boolean isUpdated = cus.updateCustomer(customer);
-        if (isUpdated) {
-            return Response.ok().build();
-        } else {
-            return Response.status(Response.Status.NOT_FOUND).build();
+    public Response updateCustomer(
+            String json, 
+            @PathParam("accountNumber") String accountNumber) {
+        try {
+            Customer customer = gson.fromJson(json, Customer.class);
+            // Ensure path account number matches customer object
+            customer.setAccountNumber(accountNumber);
+            
+            boolean isUpdated = customerOpr.updateCustomer(customer);
+            if (isUpdated) {
+                return Response.ok("Customer updated successfully").build();
+            } else {
+                return Response.status(Response.Status.NOT_FOUND)
+                        .entity("Customer not found with account: " + accountNumber)
+                        .build();
+            }
+        } catch (Exception e) {
+            return Response.serverError().entity(e.getMessage()).build();
         }
     }
 
     // Delete customer
     @DELETE
-    @Path("{id}")
-    public Response deleteCustomer(@PathParam("id") int id) {
-        boolean isDeleted = cus.deleteCustomer(id);
-        if (isDeleted) {
-            return Response.ok().build();
-        } else {
-            return Response.status(Response.Status.NOT_FOUND).build();
+    @Path("{accountNumber}")
+    public Response deleteCustomer(@PathParam("accountNumber") String accountNumber) {
+        try {
+            boolean isDeleted = customerOpr.deleteCustomer(accountNumber);
+            if (isDeleted) {
+                return Response.ok("Customer deleted successfully").build();
+            } else {
+                return Response.status(Response.Status.NOT_FOUND)
+                        .entity("Customer not found with account: " + accountNumber)
+                        .build();
+            }
+        } catch (Exception e) {
+            return Response.serverError().entity(e.getMessage()).build();
         }
     }
 }
