@@ -1,36 +1,39 @@
-/*
- * Click nbfs://nbhost/SystemFileSystem/Templates/Licenses/license-default.txt to change this license
- * Click nbfs://nbhost/SystemFileSystem/Templates/Classes/Class.java to edit this template
- */
 package com.mycompany.customerapi.model;
 
+import java.util.Date;
 
 public class Customer {
-    private int id;
+    private String accountNumber;
     private String name;
+    private String address;
+    private String telephone;
     private String email;
-    private String phone;
+    private int unitsConsumed;
+    private Date registeredDate;
+    private Date lastBilledDate;
 
-    // Constructors
-    public Customer() {}
-    
-    public Customer(int id, String name, String email, String phone) {
-        this.id = id;
-        this.name = name;
-        this.email = email;
-        this.phone = phone;
-    }
-
-    // Getters and Setters
-    public int getId() { return id; }
-    public void setId(int id) { this.id = id; }
+    // Getters and setters for all fields
+    public String getAccountNumber() { return accountNumber; }
+    public void setAccountNumber(String accountNumber) { this.accountNumber = accountNumber; }
     
     public String getName() { return name; }
     public void setName(String name) { this.name = name; }
     
+    public String getAddress() { return address; }
+    public void setAddress(String address) { this.address = address; }
+    
+    public String getTelephone() { return telephone; }
+    public void setTelephone(String telephone) { this.telephone = telephone; }
+    
     public String getEmail() { return email; }
     public void setEmail(String email) { this.email = email; }
     
-    public String getPhone() { return phone; }
-    public void setPhone(String phone) { this.phone = phone; }
+    public int getUnitsConsumed() { return unitsConsumed; }
+    public void setUnitsConsumed(int unitsConsumed) { this.unitsConsumed = unitsConsumed; }
+    
+    public Date getRegisteredDate() { return registeredDate; }
+    public void setRegisteredDate(Date registeredDate) { this.registeredDate = registeredDate; }
+    
+    public Date getLastBilledDate() { return lastBilledDate; }
+    public void setLastBilledDate(Date lastBilledDate) { this.lastBilledDate = lastBilledDate; }
 }

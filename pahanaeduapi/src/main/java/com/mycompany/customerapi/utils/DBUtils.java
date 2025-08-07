@@ -10,7 +10,7 @@ public class DBUtils {
         }
     }
     
-    private static final String JDBC_URL = "jdbc:mysql://localhost:3306/batch13?useSSL=false&allowPublicKeyRetrieval=true";
+    private static final String JDBC_URL = "jdbc:mysql://localhost:3306/pahana_edu_db?useSSL=false&allowPublicKeyRetrieval=true";
     private static final String JDBC_USER = "root";
     private static final String JDBC_PASSWORD = "root";
 
