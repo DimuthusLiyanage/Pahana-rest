@@ -4,11 +4,13 @@
  */
 package CoustermerTest;
 
+import com.mycompany.customerapi.model.Item;
 import com.mycompany.customerapi.utils.BillOPR;
 import com.mycompany.customerapi.utils.CustomerOPR;
 import com.mycompany.customerapi.utils.DBUtils;
 import com.mycompany.customerapi.utils.ItemOPR;
 import com.mycompany.customerapi.utils.UserOPR;
+import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.Date;
@@ -98,4 +100,6 @@ customer.setRegisteredDate(java.sql.Date.valueOf(today));
         assertEquals(6, item.getItemId());
         assertNotNull(item.getItemId());
     }
+    
+   
 }
