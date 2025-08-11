@@ -17,6 +17,7 @@ public class CustomerOPR {
              ResultSet rs = stmt.executeQuery(sql)) {
             
             while (rs.next()) {
+                Date regdate=rs.getDate("registered_date");
                 Customer customer = new Customer();
                 customer.setAccountNumber(rs.getString("account_number"));
                 customer.setName(rs.getString("name"));
@@ -24,7 +25,7 @@ public class CustomerOPR {
                 customer.setTelephone(rs.getString("telephone"));
                 customer.setEmail(rs.getString("email"));
                 customer.setUnitsConsumed(rs.getInt("units_consumed"));
-                customer.setRegisteredDate(rs.getDate("registered_date"));
+                customer.setRegisteredDate(regdate);
                 customer.setLastBilledDate(rs.getDate("last_billed_date"));
                 customers.add(customer);
             }
