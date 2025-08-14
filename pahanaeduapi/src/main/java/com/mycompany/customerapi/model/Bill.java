@@ -1,3 +1,4 @@
+// Bill.java
 package com.mycompany.customerapi.model;
 
 import java.util.Date;
@@ -10,9 +11,9 @@ public class Bill {
     private int totalUnits;
     private double amountDue;
     private String paymentStatus;
-    private List<BillItem> items;
+    private List<BillItem> items; // For nested line items
 
-    // Getters and setters
+    // Getters and Setters
     public int getBillId() { return billId; }
     public void setBillId(int billId) { this.billId = billId; }
     
