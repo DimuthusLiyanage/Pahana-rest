@@ -61,8 +61,8 @@ public class CustomerOPR {
     }
 
     public boolean addCustomer(Customer customer) {
-        String sql = "INSERT INTO customers (account_number, name, address, telephone, email, units_consumed, registered_date) "
-                   + "VALUES (?, ?, ?, ?, ?, ?, ?)";
+        String sql = "INSERT INTO customers (account_number, name, address, telephone, email, units_consumed) "
+                   + "VALUES (?, ?, ?, ?, ?, ?)";
         try (Connection conn = dbUtils.getConnection();
              PreparedStatement stmt = conn.prepareStatement(sql)) {
             stmt.setString(1, customer.getAccountNumber());
@@ -71,7 +71,7 @@ public class CustomerOPR {
             stmt.setString(4, customer.getTelephone());
             stmt.setString(5, customer.getEmail());
             stmt.setInt(6, customer.getUnitsConsumed());
-            stmt.setDate(7, new java.sql.Date(customer.getRegisteredDate().getTime()));
+ 
             return stmt.executeUpdate() > 0;
         } catch (SQLException e) {
             throw new RuntimeException("Database error", e);

@@ -1,3 +1,4 @@
+// BillItem.java
 package com.mycompany.customerapi.model;
 
 public class BillItem {
@@ -5,9 +6,8 @@ public class BillItem {
     private int itemId;
     private int quantity;
     private double unitPrice;
-    private String itemName; // This would come from joining with items table
 
-    // Getters and setters
+    // Getters and Setters
     public int getBillId() { return billId; }
     public void setBillId(int billId) { this.billId = billId; }
     
@@ -19,7 +19,4 @@ public class BillItem {
     
     public double getUnitPrice() { return unitPrice; }
     public void setUnitPrice(double unitPrice) { this.unitPrice = unitPrice; }
-    
-    public String getItemName() { return itemName; }
-    public void setItemName(String itemName) { this.itemName = itemName; }
 }

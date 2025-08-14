@@ -1,3 +1,4 @@
+// BillOPR.java
 package com.mycompany.customerapi.utils;
 
 import com.mycompany.customerapi.model.Bill;
@@ -25,7 +26,6 @@ public class BillOPR {
                 bill.setTotalUnits(rs.getInt("total_units"));
                 bill.setAmountDue(rs.getDouble("amount_due"));
                 bill.setPaymentStatus(rs.getString("payment_status"));
-                // Optionally load items here with another query
                 bills.add(bill);
             }
         } catch (SQLException e) {
@@ -35,21 +35,39 @@ public class BillOPR {
     }
 
     public Bill getBillById(int billId) {
-        String sql = "SELECT * FROM bills WHERE bill_id = ?";
+        String billSql = "SELECT * FROM bills WHERE bill_id = ?";
+        String itemsSql = "SELECT * FROM bill_items WHERE bill_id = ?";
+        
         try (Connection conn = dbUtils.getConnection();
-             PreparedStatement stmt = conn.prepareStatement(sql)) {
-            stmt.setInt(1, billId);
-            try (ResultSet rs = stmt.executeQuery()) {
-                if (rs.next()) {
+             PreparedStatement billStmt = conn.prepareStatement(billSql)) {
+            
+            billStmt.setInt(1, billId);
+            try (ResultSet billRs = billStmt.executeQuery()) {
+                if (billRs.next()) {
                     Bill bill = new Bill();
-                    bill.setBillId(rs.getInt("bill_id"));
-                    bill.setAccountNumber(rs.getString("account_number"));
-                    bill.setBillDate(rs.getDate("bill_date"));
-                    bill.setTotalUnits(rs.getInt("total_units"));
-                    bill.setAmountDue(rs.getDouble("amount_due"));
-                    bill.setPaymentStatus(rs.getString("payment_status"));
-                    // Load items
-                    bill.setItems(getBillItems(billId));
+                    bill.setBillId(billRs.getInt("bill_id"));
+                    bill.setAccountNumber(billRs.getString("account_number"));
+                    bill.setBillDate(billRs.getDate("bill_date"));
+                    bill.setTotalUnits(billRs.getInt("total_units"));
+                    bill.setAmountDue(billRs.getDouble("amount_due"));
+                    bill.setPaymentStatus(billRs.getString("payment_status"));
+                    
+                    // Fetch line items
+                    try (PreparedStatement itemsStmt = conn.prepareStatement(itemsSql)) {
+                        itemsStmt.setInt(1, billId);
+                        try (ResultSet itemsRs = itemsStmt.executeQuery()) {
+                            List<BillItem> items = new ArrayList<>();
+                            while (itemsRs.next()) {
+                                BillItem item = new BillItem();
+                                item.setBillId(itemsRs.getInt("bill_id"));
+                                item.setItemId(itemsRs.getInt("item_id"));
+                                item.setQuantity(itemsRs.getInt("quantity"));
+                                item.setUnitPrice(itemsRs.getDouble("unit_price"));
+                                items.add(item);
+                            }
+                            bill.setItems(items);
+                        }
+                    }
                     return bill;
                 }
             }
@@ -59,167 +77,108 @@ public class BillOPR {
         return null;
     }
 
-    public List<Bill> getBillsByAccount(String accountNumber) {
-        List<Bill> bills = new ArrayList<>();
-        String sql = "SELECT * FROM bills WHERE account_number = ?";
+    public boolean addBill(Bill bill) {
+        String billSql = "INSERT INTO bills (account_number, bill_date, total_units, amount_due, payment_status) "
+                       + "VALUES (?, ?, ?, ?, ?)";
+        String itemSql = "INSERT INTO bill_items (bill_id, item_id, quantity, unit_price) "
+                       + "VALUES (?, ?, ?, ?)";
         
         try (Connection conn = dbUtils.getConnection();
-             PreparedStatement stmt = conn.prepareStatement(sql)) {
-            stmt.setString(1, accountNumber);
-            try (ResultSet rs = stmt.executeQuery()) {
-                while (rs.next()) {
-                    Bill bill = new Bill();
-                    bill.setBillId(rs.getInt("bill_id"));
-                    bill.setAccountNumber(rs.getString("account_number"));
-                    bill.setBillDate(rs.getDate("bill_date"));
-                    bill.setTotalUnits(rs.getInt("total_units"));
-                    bill.setAmountDue(rs.getDouble("amount_due"));
-                    bill.setPaymentStatus(rs.getString("payment_status"));
-                    bills.add(bill);
-                }
-            }
-        } catch (SQLException e) {
-            throw new RuntimeException("Database error", e);
-        }
-        return bills;
-    }
-
-    public int createBill(Bill bill) {
-        String sql = "INSERT INTO bills (account_number, bill_date, total_units, amount_due, payment_status) "
-                   + "VALUES (?, ?, ?, ?, ?)";
-        try (Connection conn = dbUtils.getConnection();
-             PreparedStatement stmt = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
-            stmt.setString(1, bill.getAccountNumber());
-            stmt.setDate(2, new java.sql.Date(bill.getBillDate().getTime()));
-            stmt.setInt(3, bill.getTotalUnits());
-            stmt.setDouble(4, bill.getAmountDue());
-            stmt.setString(5, bill.getPaymentStatus());
+             PreparedStatement billStmt = conn.prepareStatement(billSql, Statement.RETURN_GENERATED_KEYS)) {
             
-            int affectedRows = stmt.executeUpdate();
-            if (affectedRows > 0) {
-                try (ResultSet rs = stmt.getGeneratedKeys()) {
+            // Insert bill header
+            billStmt.setString(1, bill.getAccountNumber());
+            billStmt.setDate(2, new java.sql.Date(bill.getBillDate().getTime()));
+            billStmt.setInt(3, bill.getTotalUnits());
+            billStmt.setDouble(4, bill.getAmountDue());
+            billStmt.setString(5, bill.getPaymentStatus());
+            
+            if (billStmt.executeUpdate() > 0) {
+                // Get generated bill_id
+                try (ResultSet rs = billStmt.getGeneratedKeys()) {
                     if (rs.next()) {
-                        return rs.getInt(1);
+                        int billId = rs.getInt(1);
+                        
+                        // Insert line items
+                        try (PreparedStatement itemStmt = conn.prepareStatement(itemSql)) {
+                            for (BillItem item : bill.getItems()) {
+                                itemStmt.setInt(1, billId);
+                                itemStmt.setInt(2, item.getItemId());
+                                itemStmt.setInt(3, item.getQuantity());
+                                itemStmt.setDouble(4, item.getUnitPrice());
+                                itemStmt.addBatch();
+                            }
+                            itemStmt.executeBatch();
+                        }
+                        return true;
                     }
                 }
             }
-            return 0;
+            return false;
         } catch (SQLException e) {
             throw new RuntimeException("Database error", e);
         }
     }
 
-    public boolean updateBillStatus(int billId, String status) {
-        String sql = "UPDATE bills SET payment_status = ? WHERE bill_id = ?";
+    public boolean updateBill(Bill bill) {
+        String billSql = "UPDATE bills SET account_number = ?, bill_date = ?, total_units = ?, "
+                       + "amount_due = ?, payment_status = ? WHERE bill_id = ?";
+        String deleteItemsSql = "DELETE FROM bill_items WHERE bill_id = ?";
+        
         try (Connection conn = dbUtils.getConnection();
-             PreparedStatement stmt = conn.prepareStatement(sql)) {
-            stmt.setString(1, status);
-            stmt.setInt(2, billId);
-            return stmt.executeUpdate() > 0;
-        } catch (SQLException e) {
-            throw new RuntimeException("Database error", e);
-        }
-    }
-
-    public Bill generateBill(String accountNumber) {
-        // First get customer's current units
-        String customerSql = "SELECT units_consumed FROM customers WHERE account_number = ?";
-        try (Connection conn = dbUtils.getConnection();
-             PreparedStatement stmt = conn.prepareStatement(customerSql)) {
-            stmt.setString(1, accountNumber);
-            try (ResultSet rs = stmt.executeQuery()) {
-                if (rs.next()) {
-                    int units = rs.getInt("units_consumed");
-                    
-                    // Calculate bill amount (simplified calculation)
-                    double amount = calculateBillAmount(units);
-                    
-                    // Create bill
-                    Bill bill = new Bill();
-                    bill.setAccountNumber(accountNumber);
-                    bill.setBillDate(new java.util.Date());
-                    bill.setTotalUnits(units);
-                    bill.setAmountDue(amount);
-                    bill.setPaymentStatus("pending");
-                    
-                    // Save to database
-                    int billId = createBill(bill);
-                    if (billId > 0) {
-                        bill.setBillId(billId);
-                        
-                        // Update customer's last billed date
-                        updateCustomerLastBilledDate(accountNumber);
-                        
-                        return bill;
+             PreparedStatement billStmt = conn.prepareStatement(billSql);
+             PreparedStatement deleteStmt = conn.prepareStatement(deleteItemsSql)) {
+            
+            // Update bill header
+            billStmt.setString(1, bill.getAccountNumber());
+            billStmt.setDate(2, new java.sql.Date(bill.getBillDate().getTime()));
+            billStmt.setInt(3, bill.getTotalUnits());
+            billStmt.setDouble(4, bill.getAmountDue());
+            billStmt.setString(5, bill.getPaymentStatus());
+            billStmt.setInt(6, bill.getBillId());
+            
+            // Delete existing items
+            deleteStmt.setInt(1, bill.getBillId());
+            deleteStmt.executeUpdate();
+            
+            // Insert new items
+            if (billStmt.executeUpdate() > 0) {
+                try (PreparedStatement itemStmt = conn.prepareStatement(
+                        "INSERT INTO bill_items VALUES (?, ?, ?, ?)")) {
+                    for (BillItem item : bill.getItems()) {
+                        itemStmt.setInt(1, bill.getBillId());
+                        itemStmt.setInt(2, item.getItemId());
+                        itemStmt.setInt(3, item.getQuantity());
+                        itemStmt.setDouble(4, item.getUnitPrice());
+                        itemStmt.addBatch();
                     }
+                    itemStmt.executeBatch();
                 }
+                return true;
             }
+            return false;
         } catch (SQLException e) {
             throw new RuntimeException("Database error", e);
         }
-        return null;
     }
 
-    private double calculateBillAmount(int units) {
-        // Implement your actual billing calculation logic here
-        // This is a simplified example
-        if (units <= 100) {
-            return units * 10.0;
-        } else if (units <= 200) {
-            return 100 * 10.0 + (units - 100) * 15.0;
-        } else {
-            return 100 * 10.0 + 100 * 15.0 + (units - 200) * 20.0;
-        }
-    }
-
-    private void updateCustomerLastBilledDate(String accountNumber) {
-        String sql = "UPDATE customers SET last_billed_date = CURRENT_DATE WHERE account_number = ?";
+    public boolean deleteBill(int billId) {
+        String deleteItemsSql = "DELETE FROM bill_items WHERE bill_id = ?";
+        String deleteBillSql = "DELETE FROM bills WHERE bill_id = ?";
+        
         try (Connection conn = dbUtils.getConnection();
-             PreparedStatement stmt = conn.prepareStatement(sql)) {
-            stmt.setString(1, accountNumber);
-            stmt.executeUpdate();
+             PreparedStatement itemsStmt = conn.prepareStatement(deleteItemsSql);
+             PreparedStatement billStmt = conn.prepareStatement(deleteBillSql)) {
+            
+            // Delete items first (foreign key constraint)
+            itemsStmt.setInt(1, billId);
+            itemsStmt.executeUpdate();
+            
+            // Delete bill
+            billStmt.setInt(1, billId);
+            return billStmt.executeUpdate() > 0;
         } catch (SQLException e) {
             throw new RuntimeException("Database error", e);
         }
-    }
-
-    public boolean addBillItem(BillItem item) {
-        String sql = "INSERT INTO bill_items (bill_id, item_id, quantity, unit_price) "
-                   + "VALUES (?, ?, ?, ?)";
-        try (Connection conn = dbUtils.getConnection();
-             PreparedStatement stmt = conn.prepareStatement(sql)) {
-            stmt.setInt(1, item.getBillId());
-            stmt.setInt(2, item.getItemId());
-            stmt.setInt(3, item.getQuantity());
-            stmt.setDouble(4, item.getUnitPrice());
-            return stmt.executeUpdate() > 0;
-        } catch (SQLException e) {
-            throw new RuntimeException("Database error", e);
-        }
-    }
-
-    public List<BillItem> getBillItems(int billId) {
-        List<BillItem> items = new ArrayList<>();
-        String sql = "SELECT bi.*, i.name as item_name FROM bill_items bi " +
-                     "JOIN items i ON bi.item_id = i.item_id " +
-                     "WHERE bi.bill_id = ?";
-        try (Connection conn = dbUtils.getConnection();
-             PreparedStatement stmt = conn.prepareStatement(sql)) {
-            stmt.setInt(1, billId);
-            try (ResultSet rs = stmt.executeQuery()) {
-                while (rs.next()) {
-                    BillItem item = new BillItem();
-                    item.setBillId(rs.getInt("bill_id"));
-                    item.setItemId(rs.getInt("item_id"));
-                    item.setQuantity(rs.getInt("quantity"));
-                    item.setUnitPrice(rs.getDouble("unit_price"));
-                    item.setItemName(rs.getString("item_name"));
-                    items.add(item);
-                }
-            }
-        } catch (SQLException e) {
-            throw new RuntimeException("Database error", e);
-        }
-        return items;
     }
 }
