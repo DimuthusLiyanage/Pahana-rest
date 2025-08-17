@@ -1,10 +1,11 @@
 package com.mycompany.customerapi.utils;
 
 import com.mycompany.customerapi.model.User;
-
 import java.sql.*;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.util.ArrayList;
+import java.util.List;
 
 public class UserOPR {
     private final DBUtils dbUtils = new DBUtils();
@@ -50,16 +51,28 @@ public class UserOPR {
 
     public boolean verifyUserCredentials(String username, String password) {
         User user = getUserByUsername(username);
-        if (user == null) {
-            System.out.println("No user found with username: " + username);
-            return false;
+        if (user == null) return false;
+        return hashPassword(password).equals(user.getPassword());
+    }
+
+    public List<User> getAllUsers() {
+        List<User> users = new ArrayList<>();
+        String sql = "SELECT * FROM users";
+        try (Connection conn = dbUtils.getConnection();
+             Statement stmt = conn.createStatement();
+             ResultSet rs = stmt.executeQuery(sql)) {
+            while (rs.next()) {
+                User user = new User();
+                user.setUserId(rs.getInt("user_id"));
+                user.setUsername(rs.getString("username"));
+                user.setRole(rs.getString("role"));
+                user.setCreatedAt(rs.getTimestamp("created_at"));
+                users.add(user);
+            }
+        } catch (SQLException e) {
+            throw new RuntimeException("Database error", e);
         }
-        String hashedInput = hashPassword(password);
-        System.out.println("Hashed input: " + hashedInput);
-        System.out.println("Stored hash: " + user.getPassword());
-        boolean matched = hashedInput.equals(user.getPassword());
-        System.out.println("Password match: " + matched);
-        return matched;
+        return users;
     }
 
     public boolean addUser(User user) {
@@ -69,6 +82,43 @@ public class UserOPR {
             stmt.setString(1, user.getUsername());
             stmt.setString(2, hashPassword(user.getPassword()));
             stmt.setString(3, user.getRole());
+            return stmt.executeUpdate() > 0;
+        } catch (SQLException e) {
+            throw new RuntimeException("Database error", e);
+        }
+    }
+
+    public boolean updateUser(User user) {
+        String sql;
+        if (user.getPassword() != null && !user.getPassword().isEmpty()) {
+            sql = "UPDATE users SET username=?, password=?, role=? WHERE user_id=?";
+        } else {
+            sql = "UPDATE users SET username=?, role=? WHERE user_id=?";
+        }
+        
+        try (Connection conn = dbUtils.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+            int paramIndex = 1;
+            stmt.setString(paramIndex++, user.getUsername());
+            
+            if (user.getPassword() != null && !user.getPassword().isEmpty()) {
+                stmt.setString(paramIndex++, hashPassword(user.getPassword()));
+            }
+            
+            stmt.setString(paramIndex++, user.getRole());
+            stmt.setInt(paramIndex, user.getUserId());
+            
+            return stmt.executeUpdate() > 0;
+        } catch (SQLException e) {
+            throw new RuntimeException("Database error", e);
+        }
+    }
+
+    public boolean deleteUser(int userId) {
+        String sql = "DELETE FROM users WHERE user_id = ?";
+        try (Connection conn = dbUtils.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+            stmt.setInt(1, userId);
             return stmt.executeUpdate() > 0;
         } catch (SQLException e) {
             throw new RuntimeException("Database error", e);
